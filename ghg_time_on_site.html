@@ -1,0 +1,95 @@
+<script type="text/javascript">
+    //set config to your website's situation: cookie name, domain and intervals in seconds you need to track
+    var ghgTimeOnSiteConfig = {
+        tosCookieName: 'ghg_tos',
+        tosCookieDomain: 'www.domain.com',
+        tosIntervalsInSeconds: [10, 20]
+    }
+
+    function ghgTosEventFunction(time) {
+        //add your event here
+        console.log(time);
+    }
+
+    var ghgTimeOnSite = function (interval, cookieName, domain) {
+        "use strict";
+        var _interval = interval,
+            _cookieName = cookieName,
+            _timedEvents = [],
+            _intervalId,
+            _lastTimedEventTime,
+            addTimedEvent = function (time, scEvent, pixelArray) {
+                var timedEvent = {
+                    time: time,
+                    scEvent: scEvent,
+                    pixelArray: pixelArray
+                };
+                _timedEvents.push(timedEvent);
+            },
+            getCookie = function (c_name) {
+                var i, x, y, ARRcookies = document.cookie.split(";");
+                for (i = 0; i < ARRcookies.length; i++) {
+                    x = ARRcookies[i].substr(0, ARRcookies[i].indexOf("="));
+                    y = ARRcookies[i].substr(ARRcookies[i].indexOf("=") + 1);
+                    x = x.replace(/^\s+|\s+$/g, "");
+                    if (x === c_name) {
+                        return unescape(y);
+                    }
+                }
+            },
+            setCookie = function (c_name, value, exdays) {
+                var exdate = new Date(),
+                    c_value;
+                exdate.setDate(exdate.getDate() + exdays);
+                c_value = escape(value) + ((exdays === null) ? "" : ";domain=" + domain + ";path=/;expires=" +
+                    exdate.toUTCString());
+                document.cookie = c_name + "=" + c_value;
+            },
+            getObjectByKeyFromArray = function (array, key, value) {
+                var i;
+                for (i = 0; i < array.length; i++) {
+                    if (array[i][key] === value) {
+                        return array[i];
+                    }
+                }
+                return null;
+            },
+            getLastObjectFromArray = function (array) {
+                return array[array.length - 1];
+            },
+            fireEvent = function (time) {
+                ghgTosEventFunction(time + '')
+            },
+            timeOnSite = function () {
+                var _currentTime, _timedEvent;
+                _currentTime = parseInt(getCookie(_cookieName), 10) || _interval / 1000;
+                if (_currentTime > _lastTimedEventTime) {
+                    window.clearInterval(_intervalId);
+                }
+                _timedEvent = getObjectByKeyFromArray(_timedEvents, "time", _currentTime);
+                if (_timedEvent !== null) {
+                    fireEvent(_timedEvent.time);
+                }
+                _currentTime = _currentTime + _interval / 1000;
+                setCookie(_cookieName, _currentTime);
+            },
+            start = function () {
+                _lastTimedEventTime = getLastObjectFromArray(_timedEvents).time;
+                _intervalId = window.setInterval(function () {
+                    timeOnSite();
+                }, _interval);
+            };
+        return {
+            addTimedEvent: addTimedEvent,
+            getCookie: getCookie,
+            start: start
+        };
+    };
+
+    var ghgTos = ghgTimeOnSite(1000, ghgTimeOnSiteConfig.tosCookieName, ghgTimeOnSiteConfig.tosCookieDomain);
+
+    for (var tosIntervals = 0; tosIntervals < ghgTimeOnSiteConfig.tosIntervalsInSeconds.length; tosIntervals++) {
+        ghgTos.addTimedEvent(ghgTimeOnSiteConfig.tosIntervalsInSeconds[tosIntervals]);
+    }
+    ghgTos.start();
+</script>
