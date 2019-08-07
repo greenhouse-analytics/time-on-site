@@ -1,95 +1,90 @@
 <script type="text/javascript">
-    //set config to your website's situation: cookie name, domain and intervals in seconds you need to track
-    var ghgTimeOnSiteConfig = {
-        tosCookieName: 'ghg_tos',
-        tosCookieDomain: 'www.domain.com',
-        tosIntervalsInSeconds: [10, 20]
+//Time on site script from Greenhouse, see https://github.com/greenhouse-analytics/time-on-site for more information.
+
+var ToS = function (tickTimeMs, expireTimeMs, storageName) {
+    "use strict";
+
+    this.addTimedEvent = addTimedEvent;
+    this.start = start;
+
+    var timedEvents = {};
+    var finalTick = 0;
+    var intervalId;
+
+    function addTimedEvent(tick, callback) {
+        timedEvents[tick] = callback;
+        finalTick = tick > finalTick ? tick : finalTick;
     }
 
-    function ghgTosEventFunction(time) {
-        //add your event here
-        console.log(time);
+    function start() {
+        resetSession();
+        intervalId = setInterval(handleInterval, tickTimeMs);
     }
 
-    var ghgTimeOnSite = function (interval, cookieName, domain) {
-        "use strict";
-        var _interval = interval,
-            _cookieName = cookieName,
-            _timedEvents = [],
-            _intervalId,
-            _lastTimedEventTime,
-            addTimedEvent = function (time, scEvent, pixelArray) {
-                var timedEvent = {
-                    time: time,
-                    scEvent: scEvent,
-                    pixelArray: pixelArray
-                };
-                _timedEvents.push(timedEvent);
-            },
-            getCookie = function (c_name) {
-                var i, x, y, ARRcookies = document.cookie.split(";");
-                for (i = 0; i < ARRcookies.length; i++) {
-                    x = ARRcookies[i].substr(0, ARRcookies[i].indexOf("="));
-                    y = ARRcookies[i].substr(ARRcookies[i].indexOf("=") + 1);
-                    x = x.replace(/^\s+|\s+$/g, "");
-                    if (x === c_name) {
-                        return unescape(y);
-                    }
-                }
-            },
-            setCookie = function (c_name, value, exdays) {
-                var exdate = new Date(),
-                    c_value;
-                exdate.setDate(exdate.getDate() + exdays);
-                c_value = escape(value) + ((exdays === null) ? "" : ";domain=" + domain + ";path=/;expires=" +
-                    exdate.toUTCString());
-                document.cookie = c_name + "=" + c_value;
-            },
-            getObjectByKeyFromArray = function (array, key, value) {
-                var i;
-                for (i = 0; i < array.length; i++) {
-                    if (array[i][key] === value) {
-                        return array[i];
-                    }
-                }
-                return null;
-            },
-            getLastObjectFromArray = function (array) {
-                return array[array.length - 1];
-            },
-            fireEvent = function (time) {
-                ghgTosEventFunction(time + '')
-            },
-            timeOnSite = function () {
-                var _currentTime, _timedEvent;
-                _currentTime = parseInt(getCookie(_cookieName), 10) || _interval / 1000;
-                if (_currentTime > _lastTimedEventTime) {
-                    window.clearInterval(_intervalId);
-                }
-                _timedEvent = getObjectByKeyFromArray(_timedEvents, "time", _currentTime);
-                if (_timedEvent !== null) {
-                    fireEvent(_timedEvent.time);
-                }
-                _currentTime = _currentTime + _interval / 1000;
-                setCookie(_cookieName, _currentTime);
-            },
-            start = function () {
-                _lastTimedEventTime = getLastObjectFromArray(_timedEvents).time;
-                _intervalId = window.setInterval(function () {
-                    timeOnSite();
-                }, _interval);
-            };
-        return {
-            addTimedEvent: addTimedEvent,
-            getCookie: getCookie,
-            start: start
-        };
-    };
-
-    var ghgTos = ghgTimeOnSite(1000, ghgTimeOnSiteConfig.tosCookieName, ghgTimeOnSiteConfig.tosCookieDomain);
-
-    for (var tosIntervals = 0; tosIntervals < ghgTimeOnSiteConfig.tosIntervalsInSeconds.length; tosIntervals++) {
-        ghgTos.addTimedEvent(ghgTimeOnSiteConfig.tosIntervalsInSeconds[tosIntervals]);
+    function resetSession() {
+        var now = Date.now(),
+            time = getTime();
+        var unknown = time === null,
+            expired = (now - time) > expireTimeMs,
+            //add relevant tagging parameters if needed
+            tagging = (/utm_source|dclid|fbclid|gclid/).test(document.URL),
+            midnight = new Date(now).getDay() !==  new Date(time).getDay(),
+            referrer = RegExp(document.location.hostname.toString()).test(document.referrer);
+        if (document.referrer === "") { referrer = true; }
+        if (unknown || expired || tagging || midnight || ! referrer) {
+            setTick(0);
+            setTime(now);
+        }
     }
-    ghgTos.start();
+
+    function handleInterval() {
+      var thisTick = getTick() + 1;
+      var callback = timedEvents[thisTick];
+      if (typeof callback === "function") {
+          callback(thisTick * tickTimeMs);
+      }
+      if (thisTick >= finalTick) {
+          clearInterval(intervalId);
+      } else {
+          setTick(thisTick);
+      }
+	}
+
+
+    function getTick() {
+        return parseInt(sessionStorage.getItem(storageName + "_tick")) || null;
+    }
+
+    function setTick(tick) {
+        sessionStorage.setItem(storageName + "_tick", tick);
+    }
+
+    function getTime() {
+        return parseInt(sessionStorage.getItem(storageName + "_time")) || null;
+    }
+
+    function setTime(time) {
+        sessionStorage.setItem(storageName + "_time", time);
+    }
+};
+//settings, default tick is 1000 miliseconds (1 second), timeout is at 1800000 miliseconds (half an hour)
+var tosInstance = new ToS(1000, 1800000, "tos");
+
+//add the timed events you want to measure, default is on 5 and 10 seconds
+tosInstance.addTimedEvent(5, onTimedEvent);
+tosInstance.addTimedEvent(10, onTimedEvent);
+tosInstance.start();
+
+function onTimedEvent(timeMs) {
+    /*add your own event handler, this example is for the data layer from GTM
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+        event: "time on site",
+        source: "gtm",
+        category: "Time on site",
+        action: "Time on site",
+        label: timeMs/1000
+    });
+    */
+}
 </script>
