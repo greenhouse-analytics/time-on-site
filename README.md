@@ -10,46 +10,24 @@ Besides that, GTM only allows you to place tags on time on page events.
 ### The solution ###
 
 Our script solves both the problem with GA and GTM. 
-The script tracks time on site based on a cookie. 
+The script tracks time on site based on Session Storage. 
 If you have spent 5 seconds on page one, and 10 on page two, your time on site will be 15 seconds according to the script.
 
 ### When should you use this script? ###
 
-The Data Technology team has investigated the added value of this script.
+The Digital Analytics team has investigated the added value of this script.
 It has added value, but only for campaigns where the little details matter (e.g. when 30k conversions make a difference with 25k conversions in your optimisation plans).
-The solution also uses a cookie. This has impact on cookie statements and privacy statements.
+The solution also uses Session Storage. This has impact on privacy statements.
 Because of this, implementation can take a long time.
 
 
 ### How to use ###
 
-You can include the `ghg_time_on_site_min.html` file to your tag manager as a custom HTML tag. 
-Customise the `ghgTimeOnSiteConfig` to your situation by changing these values:
+You can include the main file to your tag manager as a custom HTML tag. 
+Read the comments in the code and replace with thing that suit your needs.
+For example:
 
-- `tosCookieName`: the name of the cookie that will be set on the domain.
-- `tosCookieDomain`: the domain the cookie should be placed on.
-- `tosIntervalSeconds`: the array of intervals in seconds you want to fire events on.
-
-Here's an example:
-
-
-```
-
-var ghgTimeOnSiteConfig = {
-    tosCookieName: 'ghg_tos',
-    tosCookieDomain: 'www.domain.com',
-    tosIntervalsInSeconds: [10, 20]
-}
-```
-
-You also need to change the `ghgTosEventFunction` to fire the event in a format that works for the client. Here's an example for a GTM event:
-
-```
-
-function ghgTosEventFunction(time){
-	dataLayer.push({
-		'event': 'time on site',
-		'time_spent_in_seconds': time
-	})
-}
-```
+- Tagging: For which tagging you want to reset the timer.
+- TimedEvent: On how many ticks/seconds you want to fire an event.
+- Event handler onTimedEvent: Add you own event handler, an example for the GTM dataLayer is in the code.
+- Default tick is one second and default timeout is 30 minutes.
