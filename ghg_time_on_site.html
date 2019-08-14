@@ -43,7 +43,7 @@ var ToS = function (tickTimeMs, expireTimeMs, storageName) {
       if (typeof callback === "function") {
           callback(thisTick * tickTimeMs);
       }
-      if (thisTick >= finalTick) {
+      if (thisTick > finalTick) {
           clearInterval(intervalId);
       } else {
           setTick(thisTick);
